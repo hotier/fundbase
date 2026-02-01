@@ -1,0 +1,2117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基金实时估值</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+            display: flex;
+        }
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 0 30px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 30px;
+        }
+        .sidebar-header h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .sidebar-header p {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .nav-menu {
+            list-style: none;
+        }
+        .nav-item {
+            margin-bottom: 5px;
+        }
+        .nav-link {
+            display: block;
+            padding: 15px 30px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-left-color: white;
+            transform: translateX(5px);
+        }
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-left-color: white;
+            font-weight: bold;
+        }
+        .container {
+            flex: 1;
+            margin-left: 250px;
+            padding: 30px;
+            max-width: none;
+        }
+        .main-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status-bar {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+        .status-bar-left {
+            flex: 0 0 auto;
+            text-align: left;
+        }
+        .status-bar-right {
+            flex: 0 0 auto;
+            text-align: right;
+            font-size: 12px;
+        }
+        .status-bar-right span {
+            margin-left: 15px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .search-box {
+            position: relative;
+            flex: 3;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .code-input-group {
+            flex: 1;
+            max-width: 120px;
+        }
+        .code-input-group input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        .code-input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .search-result-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+            display: flex !important;
+            align-items: center !important;
+        }
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .result-code {
+            font-weight: bold;
+            color: #667eea;
+            margin-right: 15px;
+            min-width: 80px !important;
+            text-align: right !important;
+            flex-shrink: 0 !important;
+        }
+        .result-name {
+            color: #333;
+            flex: 1 !important;
+        }
+        .input-group input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        .input-group input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            width: auto;
+            min-width: 120px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-left: auto;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .small-btn {
+            min-width: 80px;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+        .fund-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .change-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .update-time {
+            font-size: 14px;
+            color: #666;
+        }
+        .change-positive {
+            color: #ff6b6b;
+        }
+        .change-negative {
+            color: #66bb6a;
+        }
+        .calc-time {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            text-align: right;
+        }
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .stock-details {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.15);
+        }
+        .stock-details h3 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .stock-details table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .stock-details thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stock-details th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .stock-details th:first-child {
+            border-radius: 8px 0 0 0;
+        }
+        .stock-details th:last-child {
+            border-radius: 0 8px 0 0;
+        }
+        .stock-details td {
+            padding: 15px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+            color: #333;
+            font-size: 14px;
+        }
+        .stock-details td.change-positive {
+            color: #ff6b6b !important;
+        }
+        .stock-details td.change-negative {
+            color: #66bb6a !important;
+        }
+        .stock-details td.change-zero {
+            color: #999 !important;
+        }
+        .stock-details tbody tr {
+            transition: all 0.3s ease;
+        }
+        .stock-details tbody tr:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+            transform: translateX(5px);
+        }
+        .stock-details tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .stock-details tbody tr:last-child td:first-child {
+            border-radius: 0 0 0 8px;
+        }
+        .stock-details tbody tr:last-child td:last-child {
+            border-radius: 0 0 8px 0;
+        }
+        .change-zero {
+            color: #999;
+            font-weight: 500;
+        }
+        .change-positive {
+            color: #ff6b6b;
+            font-weight: 600;
+        }
+        .change-negative {
+            color: #66bb6a;
+            font-weight: 600;
+        }
+        .empty-state {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 15px;
+            padding: 60px 30px;
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 16px;
+        }
+        .add-to-favorites-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .add-to-favorites-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
+        }
+        .add-to-favorites-btn.added {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ef5350 100%);
+        }
+        .add-to-favorites-btn.added:hover {
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+        .favorites-container {
+            margin-top: 30px;
+        }
+        .favorites-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #favoritesCount {
+            color: #666;
+            font-size: 14px;
+        }
+        .favorites-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .favorite-item {
+            background: white;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        .favorite-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+        .favorite-item-info {
+            flex: 1;
+        }
+        .favorite-item-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .favorite-item-code {
+            font-size: 14px;
+            color: #666;
+        }
+        .favorite-item-valuation {
+            text-align: right;
+            margin-right: 20px;
+        }
+        .favorite-item-change {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .favorite-item-time {
+            font-size: 12px;
+            color: #999;
+        }
+        .favorite-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .remove-from-favorites-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ef5350 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .remove-from-favorites-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+        .view-details-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .view-details-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .edit-holding-btn {
+            padding: 4px 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+            transition: all 0.3s ease;
+        }
+        .edit-holding-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        .favorite-item-holding {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .holding-amount {
+            font-weight: bold;
+            color: #333;
+            margin: 0 5px;
+        }
+        .favorite-item-profit {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .profit-positive {
+            color: #ff6b6b;
+        }
+        .profit-negative {
+            color: #66bb6a;
+        }
+        .profit-zero {
+            color: #999;
+        }
+        .favorites-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        .favorites-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .favorites-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .favorites-table td {
+            padding: 15px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+            color: #333;
+            font-size: 14px;
+        }
+        .favorites-table tbody tr {
+            transition: all 0.3s ease;
+        }
+        .favorites-table tbody tr:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+        }
+        .favorites-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .sort-arrow {
+            margin-left: 8px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        .fund-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .fund-code {
+            font-size: 12px;
+            color: #666;
+        }
+        .holding-info {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .favorites-update-time {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-align: right;
+        }
+        .group-summary {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        .group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .group-header h3 {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        .group-count {
+            font-size: 14px;
+            color: #666;
+        }
+        .summary-content {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .summary-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .group-management {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .group-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .group-filter label {
+            font-size: 14px;
+            color: #666;
+        }
+        .group-filter select {
+            padding: 8px 12px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            background: white;
+            cursor: pointer;
+        }
+        .group-filter select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .fund-group {
+            margin-bottom: 30px;
+        }
+        .group-content {
+            margin-top: 15px;
+        }
+        .empty-group {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 14px;
+        }
+        .fund-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        .fund-link:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #333;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group input[readonly] {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-actions .btn {
+            flex: 1;
+        }
+        .save-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .delete-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ef5350 100%);
+        }
+        .group-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        .group-item:hover {
+            background-color: #f5f5f5;
+        }
+        .group-item-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        .group-item-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .group-item-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .add-group-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .favorites-search {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        .favorites-search .search-box {
+            flex: 1;
+            position: relative;
+        }
+        .favorites-search .search-box input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        .favorites-search .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .favorites-search .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .favorites-search .btn {
+            padding: 15px 30px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <!-- 左侧导航栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>基金管理系统</h2>
+            <p>实时估值 · 智能分析</p>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a href="#" class="nav-link active" data-section="single-fund">单个基金查询</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="favorites">基金自选</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="rank">涨跌幅榜</a>
+            </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link" data-section="profile">个人中心</a>
+            </li>
+        </ul>
+    </div>
+    
+    <div class="container">
+        <div class="main-content">
+            <!-- 单个基金查询 -->
+            <div id="single-fund" class="section">
+                <h1>基金实时估值</h1>
+                <p class="subtitle">基于重仓股涨跌幅加权计算</p>
+                
+                <div class="status-bar" id="statusBar">
+                    <div class="status-bar-left" id="statusBarLeft">
+                        当前为非交易时间 - 收盘价数据
+                    </div>
+                    <div class="status-bar-right" id="statusBarRight">
+                        <span id="currentTime"></span>
+                        <span id="nextTradeDate"></span>
+                    </div>
+                </div>
+                
+                <div class="input-row">
+                    <div class="code-input-group">
+                        <input type="text" id="fundCode" placeholder="基金代码">
+                    </div>
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="输入基金代码、简称或拼音缩写搜索...">
+                        <div class="search-results" id="searchResults" style="display: none;"></div>
+                    </div>
+                    <button class="btn" id="calculateBtn">查询估值</button>
+                </div>
+                
+                <div id="resultContainer"></div>
+            </div>
+            
+            <!-- 基金自选 -->
+            <div id="favorites" class="section" style="display: none;">
+                <h1>基金自选</h1>
+                <p class="subtitle">管理您关注的基金</p>
+                <div class="favorites-container">
+                    <div class="favorites-header">
+                        <span id="favoritesCount"></span>
+                    </div>
+                    
+                    <div class="favorites-search">
+                        <div class="search-box">
+                            <input type="text" id="favoritesSearchInput" placeholder="输入基金代码、简称或拼音缩写搜索...">
+                            <div class="search-results" id="favoritesSearchResults" style="display: none;"></div>
+                        </div>
+                        <button class="btn" id="addToFavoritesBtn">添加到自选</button>
+                    </div>
+                    
+                    <div id="favoritesList" class="favorites-list">
+                        <div class="empty-state">
+                            <p>您还没有添加自选基金</p>
+                            <p style="font-size: 14px; color: #666; margin-top: 10px;">在上方搜索框中输入基金代码或名称添加</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 涨跌幅榜 -->
+            <div id="rank" class="section" style="display: none;">
+                <h1>涨跌幅榜</h1>
+                <p class="subtitle">基金表现排名</p>
+                <div class="empty-state">
+                    <p>涨跌幅榜数据加载中...</p>
+                </div>
+            </div>
+            
+            <!-- 个人中心 -->
+            <div id="profile" class="section" style="display: none;">
+                <h1>个人中心</h1>
+                <p class="subtitle">个人设置和偏好</p>
+                <div class="empty-state">
+                    <p>个人中心功能开发中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 导航功能
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.section');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // 移除所有导航项的active类
+                navLinks.forEach(item => item.classList.remove('active'));
+                // 添加当前导航项的active类
+                link.classList.add('active');
+                
+                // 隐藏所有内容区域
+                sections.forEach(section => section.style.display = 'none');
+                // 显示对应内容区域
+                const targetSection = link.getAttribute('data-section');
+                document.getElementById(targetSection).style.display = 'block';
+            });
+        });
+        
+        // 搜索功能
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        const fundCodeInput = document.getElementById('fundCode');
+        
+        searchInput.addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword.length < 1) {
+                searchResults.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                
+                console.log('搜索API返回数据:', data);
+                
+                if (data.total > 0) {
+                    searchResults.innerHTML = '';
+                    data.results.forEach(fund => {
+                        console.log('基金数据:', fund, 'name类型:', typeof fund.name, 'name值:', fund.name);
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.innerHTML = `
+                            <span class="result-name">${fund.name} (${fund.code})</span>
+                        `;
+                        item.addEventListener('click', () => {
+                            fundCodeInput.value = fund.code;
+                            searchInput.value = fund.name;
+                            searchResults.style.display = 'none';
+                        });
+                        searchResults.appendChild(item);
+                    });
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+                searchResults.style.display = 'none';
+            }
+        });
+        
+        // 点击页面其他地方关闭搜索结果
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+        
+        // 计算功能
+        const calculateBtn = document.getElementById('calculateBtn');
+        const resultContainer = document.getElementById('resultContainer');
+        
+        calculateBtn.addEventListener('click', async () => {
+            const fundCode = document.getElementById('fundCode').value.trim();
+            if (!fundCode) {
+                alert('请输入基金代码');
+                return;
+            }
+            
+            calculateBtn.disabled = true;
+            calculateBtn.textContent = '查询中...';
+            
+            console.log('开始查询基金估值，基金代码:', fundCode);
+            
+            try {
+                const response = await fetch('/api/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fund_code: fundCode })
+                });
+                
+                console.log('服务器响应状态:', response.status);
+                if (!response.ok) {
+                    throw new Error(`服务器响应错误: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('服务器返回数据:', result);
+                
+                if (result.success) {
+                    const data = result.data;
+                    const isPositive = data.weighted_change.startsWith('+');
+                    
+                    // 构建个股详情表格
+                    let stockTable = '';
+                    if (data.stock_details && data.stock_details.length > 0) {
+                        stockTable = `
+                            <div class="stock-details">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                    <h3>重仓股详情</h3>
+                                    <div class="update-time">更新时间: ${data.calc_time}</div>
+                                </div>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>代码</th>
+                                            <th>名称</th>
+                                            <th>持仓比例</th>
+                                            <th>最新价</th>
+                                            <th>涨跌幅</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.stock_details.map(stock => {
+                                            const changeClass = stock.change.startsWith('-') ? 'change-negative' : stock.change.startsWith('+') ? 'change-positive' : 'change-zero';
+                                            return `
+                                                <tr>
+                                                    <td>${stock.code}</td>
+                                                    <td>${stock.name}</td>
+                                                    <td>${stock.ratio !== undefined && stock.ratio !== null ? parseFloat(stock.ratio).toFixed(2) + '%' : 'N/A'}</td>
+                                                    <td>${stock.price !== undefined && stock.price !== null ? parseFloat(stock.price).toFixed(2) : 'N/A'}</td>
+                                                    <td class="${changeClass}">${stock.change}</td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    }
+                    
+                    resultContainer.innerHTML = `
+                        <div class="result-card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div class="fund-name">${data.fund_name} (${data.fund_code})</div>
+                                <button class="add-to-favorites-btn" data-fund-code="${data.fund_code}" data-fund-name="${data.fund_name}">添加到自选</button>
+                            </div>
+                            <div class="change-value ${isPositive ? 'change-positive' : 'change-negative'}">
+                                ${data.weighted_change}
+                            </div>
+                        </div>
+                        ${stockTable}
+                    `;
+                } else {
+                    resultContainer.innerHTML = `
+                        <div class="error-message">${result.message}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('查询失败:', error);
+                resultContainer.innerHTML = `
+                    <div class="error-message">网络错误，请稍后重试: ${error.message}</div>
+                `;
+            } finally {
+                calculateBtn.disabled = false;
+                calculateBtn.textContent = '查询估值';
+            }
+        });
+        
+        // 更新实时时间
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+        
+        // 计算下一交易日
+        function getNextTradeDate() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const daysToAdd = dayOfWeek === 5 ? 3 : (dayOfWeek === 6 ? 2 : 1);
+            const nextTradeDate = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+            const dateStr = nextTradeDate.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                weekday: 'long'
+            });
+            document.getElementById('nextTradeDate').textContent = `下一交易日: ${dateStr}`;
+        }
+        
+        // 初始化状态
+        async function init() {
+            try {
+                const response = await fetch('/api/trading-time');
+                const result = await response.json();
+                const statusBarLeft = document.getElementById('statusBarLeft');
+                const statusBar = document.getElementById('statusBar');
+                
+                if (result.is_trading_time) {
+                    statusBarLeft.textContent = '当前为交易时间 - 实时数据';
+                    statusBar.style.background = '#66bb6a';
+                } else {
+                    statusBarLeft.textContent = '当前为非交易时间 - 收盘价数据';
+                    statusBar.style.background = '#ff6b6b';
+                }
+                
+                // 启动实时时间更新
+                updateCurrentTime();
+                setInterval(updateCurrentTime, 1000);
+                
+                // 计算下一交易日
+                getNextTradeDate();
+            } catch (error) {
+                console.error('获取交易时间状态失败:', error);
+            }
+        }
+        
+        init();
+        
+        // 自选基金功能
+        function getFavorites() {
+            const favorites = localStorage.getItem('fundFavorites');
+            if (!favorites) {
+                return {
+                    groups: [],
+                    funds: []
+                };
+            }
+            
+            const parsedFavorites = JSON.parse(favorites);
+            
+            // 兼容旧的数据格式（如果是数组，则转换为新的对象格式）
+            if (Array.isArray(parsedFavorites)) {
+                return {
+                    groups: [],
+                    funds: parsedFavorites.map(fund => ({
+                        code: fund.code,
+                        name: fund.name,
+                        addedAt: fund.addedAt,
+                        holdingAmount: fund.holdingAmount || 0,
+                        groupId: null
+                    }))
+                };
+            }
+            
+            return parsedFavorites;
+        }
+        
+        function saveFavorites(favorites) {
+            localStorage.setItem('fundFavorites', JSON.stringify(favorites));
+        }
+        
+        function addToFavorites(fundCode, fundName) {
+            console.log('addToFavorites被调用，基金代码:', fundCode, '基金名称:', fundName);
+            
+            const favorites = getFavorites();
+            console.log('获取到的favorites数据:', favorites);
+            
+            // 检查是否已经在自选列表中
+            const existingFund = favorites.funds.find(fund => fund.code === fundCode);
+            console.log('是否已存在:', existingFund ? true : false);
+            
+            if (existingFund) {
+                // 已经在自选列表中，移除它
+                const updatedFunds = favorites.funds.filter(fund => fund.code !== fundCode);
+                favorites.funds = updatedFunds;
+                console.log('移除后的funds:', updatedFunds);
+                saveFavorites(favorites);
+                console.log('已保存移除操作');
+                return null; // 返回null表示已移除
+            } else {
+                // 添加到自选列表，默认添加到第一个分组，如果没有分组则不分组
+                const newFund = {
+                    code: fundCode,
+                    name: fundName,
+                    addedAt: new Date().toISOString(),
+                    holdingAmount: 0,
+                    groupId: favorites.groups.length > 0 ? favorites.groups[0].id : null
+                };
+                console.log('要添加的新基金:', newFund);
+                favorites.funds.push(newFund);
+                console.log('添加后的funds:', favorites.funds);
+                saveFavorites(favorites);
+                console.log('已保存添加操作');
+                return newFund; // 返回新添加的基金对象
+            }
+        }
+        
+        function isInFavorites(fundCode) {
+            console.log('isInFavorites被调用，基金代码:', fundCode);
+            const favorites = getFavorites();
+            const result = favorites.funds.some(fund => fund.code === fundCode);
+            console.log('isInFavorites返回值:', result);
+            return result;
+        }
+        
+        // 为添加到自选按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('add-to-favorites-btn')) {
+                e.preventDefault();
+                e.stopPropagation();
+                const fundCode = e.target.getAttribute('data-fund-code');
+                const fundName = e.target.getAttribute('data-fund-name');
+                
+                console.log('添加到自选按钮被点击，基金代码:', fundCode, '基金名称:', fundName);
+                
+                const result = addToFavorites(fundCode, fundName);
+                
+                console.log('addToFavorites返回值:', result);
+                
+                if (result) {
+                    // 新添加的基金，显示编辑模态框
+                    e.target.textContent = '移除自选';
+                    e.target.classList.add('added');
+                    showFundEditModal(fundCode, fundName);
+                } else {
+                    // 已移除基金
+                    e.target.textContent = '添加到自选';
+                    e.target.classList.remove('added');
+                    alert('已从自选基金中移除');
+                }
+            }
+        });
+        
+        // 更新添加到自选按钮的状态
+        function updateFavoriteButtons() {
+            const buttons = document.querySelectorAll('.add-to-favorites-btn');
+            console.log('更新添加到自选按钮状态，找到的按钮数量:', buttons.length);
+            buttons.forEach(button => {
+                const fundCode = button.getAttribute('data-fund-code');
+                console.log('更新按钮状态，基金代码:', fundCode);
+                if (isInFavorites(fundCode)) {
+                    button.textContent = '移除自选';
+                    button.classList.add('added');
+                } else {
+                    button.textContent = '添加到自选';
+                    button.classList.remove('added');
+                }
+            });
+        }
+        
+        // 当查询结果显示后更新按钮状态
+        const originalInnerHTML = resultContainer.innerHTML;
+        const originalSetInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set;
+        Object.defineProperty(resultContainer, 'innerHTML', {
+            set: function(value) {
+                originalSetInnerHTML.call(this, value);
+                // 延迟更新按钮状态，确保DOM已经更新
+                setTimeout(updateFavoriteButtons, 100);
+            }
+        });
+        
+        let sortState = {
+            field: null,
+            direction: 'asc'
+        };
+        
+        // 基金数据缓存，用于存储涨跌幅和预估收益数据
+        let fundDataCache = {};
+        
+        // 自选基金页面功能
+        function loadFavorites() {
+            const favorites = getFavorites();
+            const favoritesList = document.getElementById('favoritesList');
+            const favoritesCount = document.getElementById('favoritesCount');
+            
+            favoritesCount.textContent = `共 ${favorites.funds.length} 只基金`;
+            
+            if (favorites.funds.length === 0) {
+                favoritesList.innerHTML = `
+                    <div class="empty-state">
+                        <p>您还没有添加自选基金</p>
+                        <p style="font-size: 14px; color: #666; margin-top: 10px;">在单个基金查询页面，点击添加到自选</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 清空列表
+            favoritesList.innerHTML = '';
+            
+            // 创建汇总分组
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'group-summary';
+            summaryDiv.innerHTML = `
+                <div class="group-header">
+                    <h3>汇总</h3>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-item">
+                        <span class="summary-label">总持仓金额：</span>
+                        <span class="summary-value" id="summaryTotalHolding">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">总体收益涨跌幅：</span>
+                        <span class="summary-value" id="summaryTotalChange">0%</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">总体收益估算金额：</span>
+                        <span class="summary-value" id="summaryTotalProfit">0</span>
+                    </div>
+                </div>
+            `;
+            favoritesList.appendChild(summaryDiv);
+            
+            // 创建分组管理和筛选区域
+            const groupManagementDiv = document.createElement('div');
+            groupManagementDiv.className = 'group-management';
+            groupManagementDiv.innerHTML = `
+                <div class="group-filter">
+                    <label for="groupFilterSelect">筛选分组：</label>
+                    <select id="groupFilterSelect">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+                <button class="btn small-btn" id="manageGroupsBtn">管理分组</button>
+                <button class="btn small-btn" id="refreshFavoritesBtn">刷新估值</button>
+            `;
+            favoritesList.appendChild(groupManagementDiv);
+            
+            // 添加分组选项到筛选器
+            const groupFilterSelect = document.getElementById('groupFilterSelect');
+            favorites.groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                option.textContent = group.name;
+                groupFilterSelect.appendChild(option);
+            });
+            
+            // 创建基金表格
+            const tableContainer = document.createElement('div');
+            tableContainer.id = 'fundsTableContainer';
+            favoritesList.appendChild(tableContainer);
+            
+            // 渲染基金表格
+            renderFundsTable(favorites, 'all');
+            
+            // 为分组筛选器添加事件监听器
+            groupFilterSelect.addEventListener('change', (e) => {
+                const selectedGroupId = e.target.value;
+                renderFundsTable(favorites, selectedGroupId);
+            });
+            
+            // 计算所有自选基金的估值
+            calculateFavoritesValuation();
+        }
+        
+        function sortFunds(funds, sortField, sortDirection) {
+            return funds.sort((a, b) => {
+                let aValue, bValue;
+                
+                switch (sortField) {
+                    case 'holdingAmount':
+                        aValue = parseFloat(a.holdingAmount || 0);
+                        bValue = parseFloat(b.holdingAmount || 0);
+                        break;
+                    case 'change':
+                        // 从缓存中获取涨跌幅值
+                        aValue = fundDataCache[a.code] ? parseFloat(fundDataCache[a.code].change.replace(/[+%]/g, '')) : 0;
+                        bValue = fundDataCache[b.code] ? parseFloat(fundDataCache[b.code].change.replace(/[+%]/g, '')) : 0;
+                        break;
+                    case 'profit':
+                        // 从缓存中获取预估收益值
+                        aValue = fundDataCache[a.code] ? parseFloat(fundDataCache[a.code].profit.replace(/[+]/g, '')) : 0;
+                        bValue = fundDataCache[b.code] ? parseFloat(fundDataCache[b.code].profit.replace(/[+]/g, '')) : 0;
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (sortDirection === 'asc') {
+                    return aValue - bValue;
+                } else {
+                    return bValue - aValue;
+                }
+            });
+        }
+        
+        function updateSortIcons() {
+            // 移除所有箭头图标
+            document.querySelectorAll('.sort-arrow').forEach(arrow => arrow.remove());
+            
+            if (!sortState.field) return;
+            
+            // 为当前排序字段添加箭头图标
+            let thElement;
+            switch (sortState.field) {
+                case 'holdingAmount':
+                    thElement = document.querySelector('.favorites-table th:nth-child(2)');
+                    break;
+                case 'change':
+                    thElement = document.querySelector('.favorites-table th:nth-child(3)');
+                    break;
+                case 'profit':
+                    thElement = document.querySelector('.favorites-table th:nth-child(4)');
+                    break;
+                default:
+                    return;
+            }
+            
+            if (thElement) {
+                const arrow = document.createElement('span');
+                arrow.className = 'sort-arrow';
+                arrow.innerHTML = sortState.direction === 'asc' ? ' ↑' : ' ↓';
+                thElement.appendChild(arrow);
+            }
+        }
+        
+        function renderFundsTable(favorites, groupId) {
+            const tableContainer = document.getElementById('fundsTableContainer');
+            if (!tableContainer) return;
+            
+            // 根据分组ID筛选基金
+            let filteredFunds = [];
+            if (groupId === 'all') {
+                // 显示所有基金
+                filteredFunds = favorites.funds;
+            } else {
+                // 显示指定分组的基金
+                filteredFunds = favorites.funds.filter(fund => fund.groupId === groupId);
+            }
+            
+            // 根据排序状态对基金进行排序
+            if (sortState.field) {
+                filteredFunds = sortFunds(filteredFunds, sortState.field, sortState.direction);
+            }
+            
+            // 创建表格
+            const table = document.createElement('table');
+            table.className = 'favorites-table';
+            
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr>
+                    <th>基金信息</th>
+                    <th class="sortable" data-sort-field="holdingAmount">持仓金额</th>
+                    <th class="sortable" data-sort-field="change">涨跌幅</th>
+                    <th class="sortable" data-sort-field="profit">预估收益</th>
+                    <th>操作</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+            
+            const tbody = document.createElement('tbody');
+            
+            filteredFunds.forEach(fund => {
+                const row = document.createElement('tr');
+                row.setAttribute('data-fund-code', fund.code);
+                
+                // 检查是否有缓存数据
+                const cachedData = fundDataCache[fund.code];
+                let changeContent = '加载中...';
+                let changeClass = 'favorite-item-change';
+                let profitContent = '';
+                let profitClass = 'favorite-item-profit';
+                
+                if (cachedData) {
+                    // 使用缓存数据
+                    changeContent = cachedData.change;
+                    changeClass = `favorite-item-change ${cachedData.change.startsWith('+') ? 'change-positive' : 'change-negative'}`;
+                    profitContent = cachedData.profit;
+                    
+                    if (cachedData.profit.startsWith('+')) {
+                        profitClass = 'favorite-item-profit profit-positive';
+                    } else if (cachedData.profit.startsWith('-')) {
+                        profitClass = 'favorite-item-profit profit-negative';
+                    } else {
+                        profitClass = 'favorite-item-profit profit-zero';
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>
+                        <div class="fund-name"><a href="#" class="fund-link" data-fund-code="${fund.code}">${fund.name}</a></div>
+                        <div class="fund-code">${fund.code}</div>
+                    </td>
+                    <td>
+                        <div class="holding-info">
+                            <span class="holding-amount" id="holding-${fund.code}">${fund.holdingAmount || 0}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="${changeClass}" id="change-${fund.code}">${changeContent}</div>
+                    </td>
+                    <td>
+                        <div class="${profitClass}" id="profit-${fund.code}">${profitContent}</div>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="edit-fund-btn" data-fund-code="${fund.code}" data-fund-name="${fund.name}">编辑</button>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            table.appendChild(tbody);
+            
+            // 清空容器并添加新表格
+            tableContainer.innerHTML = '';
+            if (filteredFunds.length === 0) {
+                tableContainer.innerHTML = '<div class="empty-group">该分组暂无基金</div>';
+            } else {
+                tableContainer.appendChild(table);
+            }
+            
+            // 添加排序事件监听器
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const field = th.getAttribute('data-sort-field');
+                    
+                    // 如果点击的是当前排序字段，则切换排序方向
+                    if (sortState.field === field) {
+                        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // 否则，设置新的排序字段和默认排序方向
+                        sortState.field = field;
+                        sortState.direction = 'asc';
+                    }
+                    
+                    // 重新渲染表格
+                    renderFundsTable(favorites, groupId);
+                });
+            });
+            
+            // 更新排序图标
+            updateSortIcons();
+        }
+        
+        async function calculateFavoritesValuation() {
+            const favorites = getFavorites();
+            let latestCalcTime = '';
+            let totalHolding = 0;
+            let totalProfit = 0;
+            let fundCount = 0;
+            
+            for (const fund of favorites.funds) {
+                try {
+                    const response = await fetch('/api/calculate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ fund_code: fund.code })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) {
+                            const data = result.data;
+                            const isPositive = data.weighted_change.startsWith('+');
+                            
+                            // 记录最新的计算时间
+                            if (data.calc_time > latestCalcTime) {
+                                latestCalcTime = data.calc_time;
+                            }
+                            
+                            // 计算预估收益
+                            const changePercent = parseFloat(data.weighted_change.replace(/[+%]/g, ''));
+                            const holdingAmount = fund.holdingAmount || 0;
+                            const estimatedProfit = (holdingAmount * changePercent) / 100;
+                            
+                            // 累计汇总数据
+                            totalHolding += holdingAmount;
+                            totalProfit += estimatedProfit;
+                            fundCount++;
+                            
+                            // 更新估值显示
+                            const changeElement = document.getElementById(`change-${fund.code}`);
+                            const profitElement = document.getElementById(`profit-${fund.code}`);
+                            const holdingElement = document.getElementById(`holding-${fund.code}`);
+                            
+                            if (changeElement && profitElement && holdingElement) {
+                                // 更新涨跌幅
+                                changeElement.textContent = data.weighted_change;
+                                changeElement.className = `favorite-item-change ${isPositive ? 'change-positive' : 'change-negative'}`;
+                                
+                                // 更新持仓金额
+                                holdingElement.textContent = holdingAmount;
+                                
+                                // 更新预估收益
+                                const profitSign = estimatedProfit >= 0 ? '+' : '';
+                                const profitClass = estimatedProfit > 0 ? 'profit-positive' : estimatedProfit < 0 ? 'profit-negative' : 'profit-zero';
+                                profitElement.textContent = `${profitSign}${estimatedProfit.toFixed(2)}`;
+                                profitElement.className = `favorite-item-profit ${profitClass}`;
+                                
+                                // 更新缓存数据
+                                fundDataCache[fund.code] = {
+                                    change: data.weighted_change,
+                                    profit: `${profitSign}${estimatedProfit.toFixed(2)}`
+                                };
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(`计算基金 ${fund.code} 估值失败:`, error);
+                    const changeElement = document.getElementById(`change-${fund.code}`);
+                    if (changeElement) {
+                        changeElement.textContent = '计算失败';
+                    }
+                    // 清空缓存数据
+                    delete fundDataCache[fund.code];
+                }
+            }
+            
+            // 更新汇总数据
+            const summaryTotalHolding = document.getElementById('summaryTotalHolding');
+            const summaryTotalChange = document.getElementById('summaryTotalChange');
+            const summaryTotalProfit = document.getElementById('summaryTotalProfit');
+            
+            if (summaryTotalHolding) {
+                summaryTotalHolding.textContent = totalHolding.toFixed(2);
+            }
+            
+            if (summaryTotalChange && totalHolding > 0) {
+                const totalChangePercent = (totalProfit / totalHolding) * 100;
+                const changeSign = totalChangePercent >= 0 ? '+' : '';
+                const changeClass = totalChangePercent > 0 ? 'change-positive' : totalChangePercent < 0 ? 'change-negative' : 'change-zero';
+                summaryTotalChange.textContent = `${changeSign}${totalChangePercent.toFixed(2)}%`;
+                summaryTotalChange.className = `summary-value ${changeClass}`;
+            }
+            
+            if (summaryTotalProfit) {
+                const profitSign = totalProfit >= 0 ? '+' : '';
+                const profitClass = totalProfit > 0 ? 'profit-positive' : totalProfit < 0 ? 'profit-negative' : 'profit-zero';
+                summaryTotalProfit.textContent = `${profitSign}${totalProfit.toFixed(2)}`;
+                summaryTotalProfit.className = `summary-value ${profitClass}`;
+            }
+            
+            // 更新最近更新时间
+            const updateTimeElement = document.getElementById('favoritesUpdateTime');
+            if (updateTimeElement) {
+                updateTimeElement.textContent = `最近更新时间: ${latestCalcTime || '加载中...'}`;
+            }
+        }
+        
+        // 导航到自选页面时加载自选基金
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const targetSection = link.getAttribute('data-section');
+                if (targetSection === 'favorites') {
+                    setTimeout(loadFavorites, 100);
+                }
+            });
+        });
+        
+        // 为刷新估值按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'refreshFavoritesBtn') {
+                loadFavorites();
+            }
+        });
+        
+        // 为移除按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-from-favorites-btn')) {
+                const fundCode = e.target.getAttribute('data-fund-code');
+                const favorites = getFavorites();
+                const updatedFavorites = favorites.filter(fund => fund.code !== fundCode);
+                saveFavorites(updatedFavorites);
+                loadFavorites();
+                alert('已从自选基金中移除');
+            }
+        });
+        
+        // 为查看详情按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-details-btn')) {
+                const fundCode = e.target.getAttribute('data-fund-code');
+                
+                // 切换到单个基金查询页面
+                navLinks.forEach(item => {
+                    if (item.getAttribute('data-section') === 'single-fund') {
+                        item.click();
+                    }
+                });
+                
+                // 填充基金代码并查询
+                const fundCodeInput = document.getElementById('fundCode');
+                const calculateBtn = document.getElementById('calculateBtn');
+                
+                fundCodeInput.value = fundCode;
+                calculateBtn.click();
+            }
+        });
+        
+        // 基金自选页面搜索功能
+        const favoritesSearchInput = document.getElementById('favoritesSearchInput');
+        const favoritesSearchResults = document.getElementById('favoritesSearchResults');
+        let selectedFundForAdd = null;
+        
+        favoritesSearchInput.addEventListener('input', async (e) => {
+            const keyword = e.target.value.trim();
+            if (keyword.length < 1) {
+                favoritesSearchResults.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/search?keyword=${encodeURIComponent(keyword)}`);
+                const data = await response.json();
+                
+                if (data.total > 0) {
+                    favoritesSearchResults.innerHTML = '';
+                    data.results.forEach(fund => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.innerHTML = `
+                            <span class="result-name">${fund.name} (${fund.code})</span>
+                        `;
+                        item.addEventListener('click', () => {
+                            favoritesSearchInput.value = fund.name;
+                            selectedFundForAdd = fund;
+                            favoritesSearchResults.style.display = 'none';
+                        });
+                        favoritesSearchResults.appendChild(item);
+                    });
+                    favoritesSearchResults.style.display = 'block';
+                } else {
+                    favoritesSearchResults.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+                favoritesSearchResults.style.display = 'none';
+            }
+        });
+        
+        // 点击页面其他地方关闭搜索结果
+        document.addEventListener('click', (e) => {
+            if (!favoritesSearchInput.contains(e.target) && !favoritesSearchResults.contains(e.target)) {
+                favoritesSearchResults.style.display = 'none';
+            }
+        });
+        
+        // 为添加到自选按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'addToFavoritesBtn') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!selectedFundForAdd) {
+                    alert('请先选择要添加的基金');
+                    return;
+                }
+                
+                console.log('自选页面添加到自选按钮被点击，选中的基金:', selectedFundForAdd);
+                
+                const favorites = getFavorites();
+                
+                // 检查是否已经在自选列表中
+                const existingFund = favorites.funds.find(fund => fund.code === selectedFundForAdd.code);
+                if (existingFund) {
+                    alert('该基金已在自选列表中');
+                    return;
+                }
+                
+                // 添加到自选列表，默认添加到第一个分组，如果没有分组则不分组
+                const newFund = {
+                    code: selectedFundForAdd.code,
+                    name: selectedFundForAdd.name,
+                    addedAt: new Date().toISOString(),
+                    holdingAmount: 0,
+                    groupId: favorites.groups.length > 0 ? favorites.groups[0].id : null
+                };
+                favorites.funds.push(newFund);
+                saveFavorites(favorites);
+                
+                console.log('新基金已添加到自选列表:', newFund);
+                
+                // 清空搜索框和选中的基金
+                favoritesSearchInput.value = '';
+                selectedFundForAdd = null;
+                
+                // 重新加载自选基金列表
+                loadFavorites();
+                
+                // 显示编辑模态框
+                showFundEditModal(newFund.code, newFund.name);
+            }
+        });
+        
+        // 为编辑基金按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-fund-btn')) {
+                const fundCode = e.target.getAttribute('data-fund-code');
+                const fundName = e.target.getAttribute('data-fund-name');
+                showFundEditModal(fundCode, fundName);
+            }
+        });
+        
+        // 为基金链接添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('fund-link')) {
+                e.preventDefault();
+                const fundCode = e.target.getAttribute('data-fund-code');
+                
+                // 切换到单个基金查询页面
+                navLinks.forEach(item => {
+                    if (item.getAttribute('data-section') === 'single-fund') {
+                        item.click();
+                    }
+                });
+                
+                // 填充基金代码并查询
+                const fundCodeInput = document.getElementById('fundCode');
+                const calculateBtn = document.getElementById('calculateBtn');
+                
+                fundCodeInput.value = fundCode;
+                calculateBtn.click();
+            }
+        });
+        
+        // 为管理分组按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'manageGroupsBtn') {
+                const favorites = getFavorites();
+                showGroupManagementModal(favorites);
+            }
+        });
+        
+        // 显示分组管理模态框
+        function showGroupManagementModal(favorites) {
+            const modal = document.getElementById('groupManagementModal');
+            const groupList = document.getElementById('groupList');
+            
+            // 清空分组列表
+            groupList.innerHTML = '';
+            
+            // 渲染分组列表
+            if (favorites.groups.length === 0) {
+                groupList.innerHTML = '<div class="empty-group">暂无分组</div>';
+            } else {
+                favorites.groups.forEach(group => {
+                    const groupItem = document.createElement('div');
+                    groupItem.className = 'group-item';
+                    groupItem.innerHTML = `
+                        <span class="group-item-name">${group.name}</span>
+                        <div class="group-item-actions">
+                            <button class="btn edit-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">编辑</button>
+                            <button class="btn delete-group-btn" data-group-id="${group.id}" data-group-name="${group.name}">删除</button>
+                        </div>
+                    `;
+                    groupList.appendChild(groupItem);
+                });
+            }
+            
+            // 显示模态框
+            modal.style.display = 'block';
+        }
+        
+        // 显示基金编辑模态框
+        function showFundEditModal(fundCode, fundName) {
+            const modal = document.getElementById('fundEditModal');
+            const favorites = getFavorites();
+            const fund = favorites.funds.find(f => f.code === fundCode);
+            
+            if (!fund) {
+                alert('未找到该基金');
+                return;
+            }
+            
+            // 填充表单数据
+            document.getElementById('fundNameInput').value = fund.name;
+            document.getElementById('fundCodeInput').value = fund.code;
+            document.getElementById('holdingAmountInput').value = fund.holdingAmount || 0;
+            
+            // 填充分组选项
+            const fundGroupSelect = document.getElementById('fundGroupSelect');
+            fundGroupSelect.innerHTML = '<option value="">未分组</option>';
+            favorites.groups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group.id;
+                option.textContent = group.name;
+                if (fund.groupId === group.id) {
+                    option.selected = true;
+                }
+                fundGroupSelect.appendChild(option);
+            });
+            
+            // 显示模态框
+            modal.style.display = 'block';
+        }
+        
+        // 关闭模态框
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.style.display = 'none';
+        }
+        
+        // 为模态框关闭按钮添加事件监听器
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'closeGroupModal') {
+                closeModal('groupManagementModal');
+            } else if (e.target.id === 'closeFundModal') {
+                closeModal('fundEditModal');
+            } else if (e.target.classList.contains('edit-group-btn')) {
+                const groupId = e.target.getAttribute('data-group-id');
+                const groupName = e.target.getAttribute('data-group-name');
+                const favorites = getFavorites();
+                const group = favorites.groups.find(g => g.id === groupId);
+                
+                if (group) {
+                    const newName = prompt('请输入新的分组名称：', group.name);
+                    if (newName && newName.trim()) {
+                        group.name = newName.trim();
+                        saveFavorites(favorites);
+                        showGroupManagementModal(favorites);
+                        loadFavorites();
+                    }
+                }
+            } else if (e.target.classList.contains('delete-group-btn')) {
+                const groupId = e.target.getAttribute('data-group-id');
+                const groupName = e.target.getAttribute('data-group-name');
+                const favorites = getFavorites();
+                const groupIndex = favorites.groups.findIndex(g => g.id === groupId);
+                
+                if (groupIndex !== -1) {
+                    const confirmDelete = confirm(`确定要删除分组 "${groupName}" 吗？该分组下的基金将移至未分组。`);
+                    if (confirmDelete) {
+                        favorites.groups.splice(groupIndex, 1);
+                        
+                        favorites.funds.forEach(fund => {
+                            if (fund.groupId === groupId) {
+                                fund.groupId = null;
+                            }
+                        });
+                        
+                        saveFavorites(favorites);
+                        showGroupManagementModal(favorites);
+                        loadFavorites();
+                    }
+                }
+            } else if (e.target.id === 'addNewGroupBtn') {
+                const groupName = prompt('请输入分组名称：');
+                if (groupName && groupName.trim()) {
+                    const favorites = getFavorites();
+                    const newGroup = {
+                        id: Date.now().toString(),
+                        name: groupName.trim()
+                    };
+                    favorites.groups.push(newGroup);
+                    saveFavorites(favorites);
+                    showGroupManagementModal(favorites);
+                    loadFavorites();
+                }
+            } else if (e.target.id === 'saveFundBtn') {
+                const fundCode = document.getElementById('fundCodeInput').value;
+                const holdingAmount = parseFloat(document.getElementById('holdingAmountInput').value);
+                const groupId = document.getElementById('fundGroupSelect').value;
+                
+                if (isNaN(holdingAmount) || holdingAmount < 0) {
+                    alert('请输入有效的持仓金额');
+                    return;
+                }
+                
+                const favorites = getFavorites();
+                const fund = favorites.funds.find(f => f.code === fundCode);
+                
+                if (fund) {
+                    fund.holdingAmount = holdingAmount;
+                    fund.groupId = groupId || null;
+                    saveFavorites(favorites);
+                    closeModal('fundEditModal');
+                    loadFavorites();
+                    alert('已保存基金信息');
+                }
+            } else if (e.target.id === 'deleteFundBtn') {
+                const fundCode = document.getElementById('fundCodeInput').value;
+                const fundName = document.getElementById('fundNameInput').value;
+                
+                const confirmDelete = confirm(`确定要移除基金 "${fundName}" 吗？`);
+                if (confirmDelete) {
+                    const favorites = getFavorites();
+                    const updatedFunds = favorites.funds.filter(f => f.code !== fundCode);
+                    favorites.funds = updatedFunds;
+                    saveFavorites(favorites);
+                    closeModal('fundEditModal');
+                    loadFavorites();
+                    alert('已移除基金');
+                }
+            }
+        });
+        
+        // 点击模态框外部关闭模态框
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+    </script>
+    
+    <!-- 分组管理模态框 -->
+    <div id="groupManagementModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>分组管理</h2>
+                <button class="modal-close" id="closeGroupModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="group-list" id="groupList"></div>
+                <button class="btn add-group-btn" id="addNewGroupBtn">添加新分组</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 基金编辑模态框 -->
+    <div id="fundEditModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>编辑基金</h2>
+                <button class="modal-close" id="closeFundModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>基金名称：</label>
+                    <input type="text" id="fundNameInput" readonly>
+                </div>
+                <div class="form-group">
+                    <label>基金代码：</label>
+                    <input type="text" id="fundCodeInput" readonly>
+                </div>
+                <div class="form-group">
+                    <label>持仓金额：</label>
+                    <input type="number" id="holdingAmountInput" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>所属分组：</label>
+                    <select id="fundGroupSelect">
+                        <option value="">未分组</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn save-btn" id="saveFundBtn">保存</button>
+                    <button class="btn delete-btn" id="deleteFundBtn">删除基金</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
